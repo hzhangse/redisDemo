@@ -11,6 +11,9 @@ import org.junit.Test;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.JedisPubSub;
+import redis.clients.jedis.Response;
+import redis.clients.jedis.Transaction;
 
 public class JedisUtilTest {
 
@@ -19,13 +22,13 @@ public class JedisUtilTest {
 
 	@Before
 	public void setUp() {
-		pool = new JedisPool(new JedisPoolConfig(), "localhost",63379);
+		pool = new JedisPool(new JedisPoolConfig(), "localhost", 63379);
 
 		jedis = pool.getResource();
 		// jedis.auth("password");
 	}
 
-	@Test
+	// @Test
 	public void testGet() {
 		System.out.println(jedis.get("lu"));
 	}
@@ -33,7 +36,7 @@ public class JedisUtilTest {
 	/**
 	 * Redis存储初级的字符串 CRUD
 	 */
-	@Test
+	// @Test
 	public void testBasicString() {
 		// -----添加数据----------
 		jedis.set("name", "minxr");// 向key-->name中放入了value-->minxr
@@ -64,7 +67,7 @@ public class JedisUtilTest {
 	/**
 	 * jedis操作Map
 	 */
-	@Test
+	// @Test
 	public void testMap() {
 		Map<String, String> user = new HashMap<String, String>();
 		user.put("name", "minxr");
@@ -95,7 +98,7 @@ public class JedisUtilTest {
 	/**
 	 * jedis操作List
 	 */
-	@Test
+	// @Test
 	public void testList() {
 		// 开始前，先移除所有的内容
 		jedis.del("java framework");
@@ -112,7 +115,7 @@ public class JedisUtilTest {
 	/**
 	 * jedis操作Set
 	 */
-	@Test
+	// @Test
 	public void testSet() {
 		// 添加
 		jedis.sadd("sname", "minxr");
@@ -128,7 +131,7 @@ public class JedisUtilTest {
 		System.out.println(jedis.scard("sname"));// 返回集合的元素个数
 	}
 
-	@Test
+	// @Test
 	public void test() throws InterruptedException {
 		// keys中传入的可以用通配符
 		System.out.println(jedis.keys("*")); // 返回当前库中所有的key [sose, sanme, name,
@@ -160,5 +163,59 @@ public class JedisUtilTest {
 		System.out.println(jedis.sort("a")); // [1, 3, 6, 9] //输入排序后结果
 		System.out.println(jedis.lrange("a", 0, -1));
 
+	}
+
+	// @Test
+	public void testHyperLogLog() {
+		jedis.pfadd("pfkey", "redis", "mysql", "oracle");
+		jedis.pfadd("destkey", "redis1", "mysql1", "oracle1");
+		System.out.println(jedis.pfcount("pfkey"));
+		System.out.println(jedis.get("pfkey"));
+		System.out.println(jedis.pfmerge("destkey", "pfkey"));
+	}
+
+	//@Test
+	public void testPubSub() {
+		jedis.publish("channels", "message..............1");
+		JedisPubSub pubSub = new JedisPubSub(){
+
+			@Override
+			public void onMessage(String channel, String message) {
+				// TODO Auto-generated method stub
+				super.onMessage(channel, message);
+				System.out.println(channel + ":"+message);
+			}
+			
+		};
+		jedis.subscribe(pubSub, "channels");		
+	}
+	
+	
+	
+	@Test
+	public void testMultiExec() {
+		Transaction transaction = jedis.multi();
+		
+		transaction.set("name", "minxr");// 向key-->name中放入了value-->minxr
+		
+
+		// -----修改数据-----------
+		// 1、在原来基础上修改
+		transaction.append("name", "jarorwar"); // 很直观，类似map 将jarorwar									// append到已经有的value之后
+		
+
+		// 2、transaction直接覆盖原来的数据
+		transaction.set("name", "闵晓荣");
+		
+
+		// 删除key对应的记录
+		//transaction.del("name");
+		
+		
+		transaction.incr("visitor");
+		List <Response<?>> rslst = transaction.execGetResponse();
+		for (Response<?> rs:rslst ){
+			System.out.println(rs.get());
+		}
 	}
 }
